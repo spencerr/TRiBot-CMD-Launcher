@@ -15,10 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -45,11 +42,13 @@ public class Main {
             e.printStackTrace();
         }
 
+        System.out.println(Arrays.toString(sargs));
+
         HashMap<String, String> parsedArguments = new HashMap<>();
-        for (String arg : sargs) {
-            String[] split = arg.split("~");
-            if (split.length == 2)
-                parsedArguments.put(split[0], split[1]);
+        for (int i = 0; i < sargs.length; i += 2) {
+            String key = sargs[i].substring(1);
+            String value = sargs[i + 1];
+            parsedArguments.put(key, value);
         }
 
         String accountSession = "";
@@ -66,16 +65,16 @@ public class Main {
             e.printStackTrace();
         }
 
-        String accountName = getArgument(parsedArguments, "accountName");
-        String scriptName = getArgument(parsedArguments, "scriptName").replace("_", " ");
-        String scriptCommand = getArgument(parsedArguments, "scriptCommand").replace("_", " ");
+        String accountName = getArgument(parsedArguments, "accountemail");
+        String scriptName = getArgument(parsedArguments, "scriptname").replace("_", " ");
+        String scriptCommand = getArgument(parsedArguments, "scriptargument").replace("_", " ");
         int world = Integer.parseInt(getArgument(parsedArguments, "world").equals("") ? "0" : getArgument(parsedArguments, "world"));
-        String breakProfile = getArgument(parsedArguments, "breakProfile");
-        String proxyIP = getArgument(parsedArguments, "proxyIP");
-        String proxyPort = getArgument(parsedArguments, "proxyPort");
-        String proxyUsername = getArgument(parsedArguments, "proxyUsername");
-        String proxyPassword = getArgument(parsedArguments, "proxyPassword");
-        String heapSize = getArgument(parsedArguments, "heapSize");
+        String breakProfile = getArgument(parsedArguments, "breakprofile");
+        String proxyIP = getArgument(parsedArguments, "proxyip");
+        String proxyPort = getArgument(parsedArguments, "proxyport");
+        String proxyUsername = getArgument(parsedArguments, "proxyusername");
+        String proxyPassword = getArgument(parsedArguments, "proxypassword");
+        String heapSize = getArgument(parsedArguments, "heapsize");
 
         String os = java.lang.System.getProperty("os.name").toLowerCase();
         String sep = os.contains("win") ? ";" : ":";
