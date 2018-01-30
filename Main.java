@@ -66,8 +66,8 @@ public class Main {
         }
 
         String accountName = getArgument(parsedArguments, "accountemail");
-        String scriptName = getArgument(parsedArguments, "scriptname").replace("_", " ");
-        String scriptCommand = getArgument(parsedArguments, "scriptargument").replace("_", " ");
+        String scriptName = getArgument(parsedArguments, "scriptname");
+        String scriptCommand = getArgument(parsedArguments, "scriptargument");
         int world = Integer.parseInt(getArgument(parsedArguments, "world").equals("") ? "0" : getArgument(parsedArguments, "world"));
         String breakProfile = getArgument(parsedArguments, "breakprofile");
         String proxyIP = getArgument(parsedArguments, "proxyip");
