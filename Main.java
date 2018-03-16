@@ -1,10 +1,7 @@
 import asm.assembly.Assembly;
 import asm.assembly.Mask;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
@@ -18,6 +15,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 
 /**
  * Created by Spencer on 9/8/2016, modified by GOD Deluxe, finalized by Swagg.
@@ -25,14 +23,19 @@ import java.util.jar.JarFile;
 public class Main {
 
     public static String cArgClass = null;
+    public static String cArgClassParam = null;
     public static String var6Class = null;
     public static String var6ArrayList = null;
     public static String encodeClass = null;
     public static String encodeMethod = null;
 
+    private static String[] cArgFields = new String[] { "username", "script_name", "command", "break_profile", "world", "proxy_ip", "proxy_port", "proxy_username", "proxy_password" };
+    private static HashMap<String, String> cArgDef = new HashMap<>();
+
     public static void main(String... sargs) {
         try {
             loadLibrary(Paths.get(getAppDataDirectory().toString(), "dependancies", "TRiBot.jar").toFile());
+            //generateHooks();
             loadHooks();
 
             if (cArgClass == null) {
@@ -99,9 +102,34 @@ public class Main {
 
         try {
 
+            Class<?> cArgParamClazz = Class.forName(cArgClassParam);
+            Constructor<?> cArgParamConstructor = cArgParamClazz.getConstructor(String.class, String.class);
+            Object cArgParamObject = cArgParamConstructor.newInstance("", "");
+
             Class<?> cArgClazz = Class.forName(cArgClass);
-            Constructor<?> constructor = cArgClazz.getConstructor(String.class, String.class, String.class, int.class, String.class, int.class);
-            Object o = constructor.newInstance(accountName, scriptName, scriptCommand, world, breakProfile, 1472396136);
+            Constructor<?> constructor = cArgClazz.getConstructor(cArgParamClazz);
+            //Constructor<?> constructor = cArgClazz.getConstructor(String.class, String.class, String.class, int.class, String.class, int.class);
+
+            Object o = constructor.newInstance(cArgParamObject);
+            //Object o = constructor.newInstance(accountName, scriptName, scriptCommand, world, breakProfile, 1472396136);
+
+            //{ "username", "script_name", "command", "break_profile", "world", "proxy_ip", "proxy_port", "proxy_username", "proxy_password" }
+            HashMap<String, Object> values = new HashMap<>();
+            values.put("username", accountName);
+            values.put("script_name", scriptName);
+            values.put("command", scriptCommand);
+            values.put("break_profile", breakProfile);
+            values.put("world", world);
+            values.put("proxy_ip", proxyIP);
+            values.put("proxy_port", Integer.parseInt(proxyPort == null || proxyPort == "" ? "0" : proxyPort));
+            values.put("proxy_username", proxyUsername);
+            values.put("proxy_password", proxyPassword);
+
+            for (String cArgField : cArgDef.keySet()) {
+                Field f = o.getClass().getField(cArgDef.get(cArgField));
+                f.setAccessible(true);
+                f.set(o, values.get(cArgField));
+            }
 
             Class<?> var6Clazz = Class.forName(var6Class);
             Constructor<?> constructor1 = var6Clazz.getConstructor(ArrayList.class, String.class);
@@ -273,6 +301,8 @@ public class Main {
                                 foundClasses.put("var6Class", className);
                             } else if ((long) uid.get(null) == -7292378165840294914L) {
                                 foundClasses.put("cArgClass", className);
+                                Class params = clazz.getConstructors()[0].getParameters()[0].getType();
+                                foundClasses.put("cArgClassParam", params.getName());
                             }
                         }
                     } catch (ExceptionInInitializerError | Exception e) {
@@ -318,15 +348,44 @@ public class Main {
             }
         }
 
+        ClassNode node1 = classNodes.get(foundClasses.get("cArgClass").replaceAll("\\.", "/"));
+        for (MethodNode methodNode : node1.methods) {
+            if (methodNode.name.equals("<init>")) {
+                ArrayList<ArrayList<AbstractInsnNode>> pattern = Assembly.findAll(methodNode, Mask.PUTFIELD);
+                if (pattern != null) {
+                    for (ArrayList<AbstractInsnNode> methodInsnNodeArray : pattern) {
+                        FieldInsnNode fieldInsnNode = (FieldInsnNode) methodInsnNodeArray.get(0);
+
+                        String nextValid = null;
+                        for (String c : cArgFields) {
+                            if (!cArgDef.containsKey(c))  {
+                                nextValid = c;
+                                break;
+                            }
+                        }
+
+                        if (nextValid == null) break;
+
+                        if (!cArgDef.containsValue(fieldInsnNode.name)) {
+                            cArgDef.put(nextValid, fieldInsnNode.name);
+                        }
+                    }
+                }
+            }
+        }
+
         List<String> lines = new ArrayList<>();
         lines.add(getMD5Checksum(Paths.get(Main.getAppDataDirectory().toString(), "dependancies", "TRiBot.jar").toString()));
         lines.add(foundClasses.get("cArgClass"));
+        lines.add(foundClasses.get("cArgClassParam"));
         lines.add(foundClasses.get("var6Class"));
         lines.add(foundClasses.get("var6ArrayList"));
         lines.add(foundClasses.get("encodeClass"));
         lines.add(foundClasses.get("encodeMethod"));
+        lines.addAll(cArgDef.keySet().stream().map(key -> key + ":" + cArgDef.get(key)).collect(Collectors.toList()));
 
         cArgClass = foundClasses.get("cArgClass");
+        cArgClassParam = foundClasses.get("cArgClassParam");
         var6Class = foundClasses.get("var6Class");
         var6ArrayList = foundClasses.get("var6ArrayList");
         encodeClass = foundClasses.get("encodeClass");
@@ -346,10 +405,14 @@ public class Main {
             if (hookData.size() > 0) {
                 if (hookData.get(0).equals(md5)) {
                     cArgClass = hookData.get(1);
-                    var6Class = hookData.get(2);
-                    var6ArrayList = hookData.get(3);
-                    encodeClass = hookData.get(4);
-                    encodeMethod = hookData.get(5);
+                    cArgClassParam = hookData.get(2);
+                    var6Class = hookData.get(3);
+                    var6ArrayList = hookData.get(4);
+                    encodeClass = hookData.get(5);
+                    encodeMethod = hookData.get(6);
+                    for (int i = 7; i < hookData.size(); i++) {
+                        cArgDef.put(hookData.get(i).split(":")[0], hookData.get(i).split(":")[1]);
+                    }
                 }
             }
         } catch (Exception e) {
